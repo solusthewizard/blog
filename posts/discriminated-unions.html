@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Discriminated unions are the pattern you're missing — byte//sized</title>
+  <meta name="description" content="Most developers reach for optional fields when they should be modelling state. A look at how discriminated unions remove entire classes of bugs from your codebase." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    /* ── POST HEADER ── */
+    .post-header {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 4rem 2rem 3rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .post-header .post-tag { margin-bottom: 1.25rem; }
+
+    .post-header h1 {
+      font-family: var(--serif);
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 400;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.25rem;
+    }
+
+    .post-header .excerpt {
+      font-size: 17px;
+      font-weight: 300;
+      color: var(--ink2);
+      line-height: 1.75;
+      margin-bottom: 1.75rem;
+    }
+
+    .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .post-meta .byline { font-size: 13px; }
+
+    .post-meta .dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--ink3);
+    }
+
+    .post-meta-detail {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+    }
+
+    /* ── POST BODY ── */
+    .post-wrap {
+      display: grid;
+      grid-template-columns: 1fr 220px;
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+
+    .post-body {
+      padding: 3rem 3rem 5rem 2rem;
+      border-right: 1px solid var(--line);
+      max-width: 680px;
+    }
+
+    .post-body p {
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--ink2);
+      line-height: 1.85;
+      margin-bottom: 1.5rem;
+    }
+
+    .post-body p strong {
+      font-weight: 500;
+      color: var(--ink);
+    }
+
+    .post-body h2 {
+      font-family: var(--serif);
+      font-size: 1.6rem;
+      font-weight: 400;
+      line-height: 1.3;
+      margin: 3rem 0 1rem;
+      letter-spacing: -0.01em;
+    }
+
+    .post-body h3 {
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink3);
+      margin: 2rem 0 0.75rem;
+    }
+
+    .post-body pre {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+
+    .post-body code {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      line-height: 1.7;
+    }
+
+    .post-body p code {
+      background: var(--tag-bg);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+    }
+
+    .post-body blockquote {
+      border-left: 2px solid var(--line);
+      padding: 0.25rem 0 0.25rem 1.25rem;
+      margin: 1.5rem 0;
+      color: var(--ink3);
+      font-style: italic;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .post-body ul, .post-body ol {
+      padding-left: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .post-body li {
+      font-size: 16px;
+      font-weight: 300;
+      color: var(--ink2);
+      line-height: 1.75;
+      margin-bottom: 0.4rem;
+    }
+
+    /* ── POST SIDEBAR ── */
+    .post-sidebar {
+      padding: 3rem 1.5rem 4rem 2rem;
+    }
+
+    .post-sidebar .section-head { margin-bottom: 1.25rem; }
+
+    .toc {
+      list-style: none;
+      margin-bottom: 2.5rem;
+    }
+
+    .toc li {
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toc a {
+      font-size: 12px;
+      color: var(--ink3);
+      line-height: 1.4;
+      transition: color 0.15s;
+      display: block;
+    }
+
+    .toc a:hover { color: var(--ink); }
+
+    /* ── BACK LINK ── */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: var(--ink3);
+      margin: 2rem 2rem 0;
+      transition: color 0.15s;
+    }
+
+    .back-link:hover { color: var(--ink); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .post-header { padding: 2.5rem 1.25rem 2rem; }
+      .post-wrap { grid-template-columns: 1fr; }
+      .post-body {
+        border-right: none;
+        padding: 2rem 1.25rem 3rem;
+      }
+      .post-sidebar { display: none; }
+      .back-link { margin: 1.25rem 1.25rem 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="../index.html" class="logo">byte<span>//</span>sized</a>
+    <ul class="nav-links">
+      <li><a href="../index.html">Articles</a></li>
+      <li><a href="../about.html">About</a></li>
+    </ul>
+    <button class="nav-cta">Subscribe</button>
+  </nav>
+
+  <a href="../index.html" class="back-link">← All articles</a>
+
+  <header class="post-header">
+    <div class="post-tag">TypeScript</div>
+    <h1>Discriminated unions are the pattern you're missing</h1>
+    <p class="excerpt">Most developers reach for optional fields when they should be modelling state. A look at how discriminated unions remove entire classes of bugs from your codebase.</p>
+    <div class="post-meta">
+      <div class="byline">
+        <div class="avatar">JM</div>
+        <span>Jamie Moore</span>
+      </div>
+      <div class="dot"></div>
+      <span class="post-meta-detail">Apr 23, 2026</span>
+      <div class="dot"></div>
+      <span class="post-meta-detail">9 min read</span>
+    </div>
+  </header>
+
+  <div class="post-wrap">
+    <article class="post-body">
+
+      <p>There's a class of bug that appears constantly in TypeScript codebases. It looks something like this: a function receives an object, checks one field to determine what kind of thing it is, and then accesses another field that may or may not exist. At runtime, it explodes. The type checker didn't catch it.</p>
+
+      <p>The root cause, almost always, is that the developer reached for <code>optional fields</code> when what they actually needed was a <strong>discriminated union</strong>.</p>
+
+      <h2 id="the-problem">The problem with optional fields</h2>
+
+      <p>Imagine you're modelling an API response. The request either succeeds (and returns data) or fails (and returns an error message). A common first attempt looks like this:</p>
+
+      <pre><code>type ApiResponse = {
+  success: boolean;
+  data?: User;
+  error?: string;
+};</code></pre>
+
+      <p>This feels fine. But the type says nothing about which combinations are valid. Is it possible for <code>data</code> and <code>error</code> to both be defined? TypeScript has no idea. You'll need to write defensive checks everywhere, and the compiler won't help you if you forget one.</p>
+
+      <h2 id="the-solution">Enter discriminated unions</h2>
+
+      <p>A discriminated union is a union type where each member has a common field — the discriminant — with a unique literal value. TypeScript uses that field to narrow the type automatically.</p>
+
+      <pre><code>type ApiResponse =
+  | { success: true; data: User }
+  | { success: false; error: string };
+
+function handle(response: ApiResponse) {
+  if (response.success) {
+    // TypeScript knows: response.data exists here
+    console.log(response.data.name);
+  } else {
+    // TypeScript knows: response.error exists here
+    console.log(response.error);
+  }
+}</code></pre>
+
+      <p>Now the type system enforces the constraint. <code>data</code> and <code>error</code> can never appear together. You don't need to defensively check for <code>undefined</code> — TypeScript narrows the type for you based on the discriminant.</p>
+
+      <h2 id="real-world">Real-world patterns</h2>
+
+      <p>Discriminated unions shine brightest when modelling state machines — anywhere something can be in one of several mutually exclusive states. Loading states are a perfect example:</p>
+
+      <pre><code>type FetchState&lt;T&gt; =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: Error };
+</code></pre>
+
+      <blockquote>
+        Make impossible states impossible — Elm community maxim, applicable everywhere.
+      </blockquote>
+
+      <p>With this type, you can't accidentally access <code>data</code> while in the <code>loading</code> state. The compiler simply won't let you. That's an entire category of bugs eliminated at the type level, before you even run the code.</p>
+
+      <h2 id="exhaustive">Exhaustive checking</h2>
+
+      <p>Another benefit: you can use <code>never</code> to ensure you've handled every case:</p>
+
+      <pre><code>function assertUnreachable(x: never): never {
+  throw new Error('Unhandled case: ' + x);
+}
+
+function render(state: FetchState&lt;User&gt;) {
+  switch (state.status) {
+    case 'idle': return &lt;Idle /&gt;;
+    case 'loading': return &lt;Spinner /&gt;;
+    case 'success': return &lt;Profile user={state.data} /&gt;;
+    case 'error': return &lt;Error message={state.error.message} /&gt;;
+    default: return assertUnreachable(state);
+  }
+}</code></pre>
+
+      <p>If you later add a new state to the union and forget to update this switch, TypeScript will error at compile time. That's the kind of safety net that pays for itself the first time you refactor.</p>
+
+      <h2 id="takeaway">The takeaway</h2>
+
+      <p>Next time you find yourself writing <code>field?: SomeType</code>, pause and ask: is this field optional because the data is genuinely optional, or because you're trying to model a state that simply doesn't exist in certain conditions? If it's the latter, a discriminated union will serve you far better.</p>
+
+      <p>The type system is there to help. Let it do its job.</p>
+
+    </article>
+
+    <aside class="post-sidebar">
+      <div class="section-head"><span>Contents</span></div>
+      <ul class="toc">
+        <li><a href="#the-problem">The problem with optional fields</a></li>
+        <li><a href="#the-solution">Enter discriminated unions</a></li>
+        <li><a href="#real-world">Real-world patterns</a></li>
+        <li><a href="#exhaustive">Exhaustive checking</a></li>
+        <li><a href="#takeaway">The takeaway</a></li>
+      </ul>
+
+      <div class="newsletter">
+        <h4>Stay in the loop</h4>
+        <p>New articles every two weeks, no filler.</p>
+        <input type="email" placeholder="you@example.com" />
+        <button type="button">Subscribe →</button>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <a href="../index.html" class="logo">byte<span>//</span>sized</a>
+    <p>© 2026 · Built with care</p>
+    <ul class="footer-links">
+      <li><a href="#">RSS</a></li>
+      <li><a href="#">Twitter</a></li>
+      <li><a href="#">GitHub</a></li>
+    </ul>
+  </footer>
+
+  <script src="../js/main.js"></script>
+</body>
+</html>
